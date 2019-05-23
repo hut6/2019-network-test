@@ -13,7 +13,6 @@
 
 <body>
 <main class="container my-4" style="max-width: 300px;">
-
     <!--[if IE]>
     <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a
             href="https://browsehappy.com/">upgrade your browser</a> to improve your experience and security.</p>
@@ -25,6 +24,8 @@
         <li class="list-group-item" data-latency>&nbsp;</li>
         <li class="list-group-item" data-loss>&nbsp;</li>
         <li class="list-group-item" data-bytes>&nbsp;</li>
+        <li class="list-group-item" data-requests>&nbsp;</li>
+        <!--        <li class="list-group-item" data-speed>&nbsp;</li>-->
     </ul>
     <ul data-preview class="preview"></ul>
 
@@ -54,8 +55,9 @@
 
         var results = [];
         var size = 0;
-        var attempts = 0;
+        var failures = attempts = 0;
         var start = Date.now();
+        var requests = [];
 
         function append(latency) {
             results.push(latency);
@@ -71,9 +73,10 @@
 
             var kbps = kb / seconds * 8;
 
-            document.querySelector('[data-latency]').innerHTML = 'Latency ' + Math.round(math.mean(results))+'ms (±' + Math.round(math.std(results)) + 'ms)'
-            document.querySelector('[data-loss]').innerHTML = 'Loss ' + (100 - Math.round(results.length / attempts * 100)) + '%';
+            document.querySelector('[data-latency]').innerHTML = 'Latency ' + Math.round(math.mean(results)) + 'ms (±' + Math.round(math.std(results)) + 'ms)'
+            document.querySelector('[data-loss]').innerHTML = 'Loss ' + (Math.round(failures / attempts * 100)) + '%';
             document.querySelector('[data-bytes]').innerHTML = 'Bytes ' + size;
+            document.querySelector('[data-requests]').innerHTML = 'Requests ' + attempts;
             // document.querySelector('[data-speed]').innerHTML = Math.round(kbps) + 'Kbps';
 
             console.log("Seconds: " + seconds);
@@ -87,15 +90,20 @@
             var start = Date.now();
             var finish;
 
+            attempts++;
+            xhr.timeout = 2000;
+            function fail() {
+                failures++;
+                element.classList.add('bg-danger');
+            }
             xhr.onload = function () {
-                attempts++;
                 size += xhr.response.length;
                 finish = Date.now();
                 if (xhr.status === 200) {
                     element.classList.add('bg-success');
                     append(finish - start);
                 } else {
-                    element.classList.add('bg-danger');
+                    fail();
                 }
 
                 if (Math.random() > 0.90) {
@@ -103,21 +111,32 @@
                 }
             };
 
-            var url = 'https://picsum.photos/id/237/100/100?'+Date.now();
-            if (Math.random() > 0.9) {
-                url = 'fdsfsdfd';
-            }
+            xhr.ontimeout = fail;
+            xhr.onabort = function () {
+                element.classList.add('bg-warning')
+            };
+
+            var url = 'https://picsum.photos/id/237/50/50?' + Date.now();
+
             xhr.open('GET', url);
             xhr.send();
+
+            requests.push(xhr);
         }
 
 
-        var interval = setInterval(poll, 50);
+        var interval = setInterval(poll, 20);
 
         setTimeout(function () {
             clearInterval(interval);
             view();
-        }, 10000)
+
+            setTimeout(function () {
+                requests.forEach(function (request) {
+                    request.abort();
+                });
+            }, 10000);
+        }, 20000)
     })();
 </script>
 </body>
