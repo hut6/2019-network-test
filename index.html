@@ -9,17 +9,30 @@
 
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
           integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
-</head>
+    <style>
+        ul.preview {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
 
+        ul.preview li {
+            display: inline-block;
+            width: 5px;
+            height: 5px;
+            border-radius: 10px;
+            background: #999;
+            margin-right: 2px;
+        }
+    </style>
+</head>
 <body>
 <main class="container my-4" style="max-width: 300px;">
     <!--[if IE]>
     <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a
             href="https://browsehappy.com/">upgrade your browser</a> to improve your experience and security.</p>
     <![endif]-->
-
     <h2>Connection Test</h2>
-
     <ul class="list-group">
         <li class="list-group-item" data-latency>&nbsp;</li>
         <li class="list-group-item" data-loss>&nbsp;</li>
@@ -28,27 +41,8 @@
         <!--        <li class="list-group-item" data-speed>&nbsp;</li>-->
     </ul>
     <ul data-preview class="preview"></ul>
-
 </main>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/5.10.3/math.min.js"></script>
-
-<style>
-    ul.preview {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-
-    ul.preview li {
-        display: inline-block;
-        width: 5px;
-        height: 5px;
-        border-radius: 10px;
-        background: #999;
-        margin-right: 2px;
-    }
-</style>
 <script>
     (function () {
         var preview = document.querySelector('[data-preview]');
@@ -92,10 +86,12 @@
 
             attempts++;
             xhr.timeout = 2000;
+
             function fail() {
                 failures++;
                 element.classList.add('bg-danger');
             }
+
             xhr.onload = function () {
                 size += xhr.response.length;
                 finish = Date.now();
@@ -125,18 +121,21 @@
         }
 
 
-        var interval = setInterval(poll, 20);
-
         setTimeout(function () {
-            clearInterval(interval);
-            view();
+            var interval = setInterval(poll, 20);
 
             setTimeout(function () {
-                requests.forEach(function (request) {
-                    request.abort();
-                });
-            }, 10000);
-        }, 20000)
+                clearInterval(interval);
+                view();
+
+                setTimeout(function () {
+                    requests.forEach(function (request) {
+                        request.abort();
+                    });
+                }, 10000);
+            }, 20000)
+        }, 2000);
+
     })();
 </script>
 </body>
