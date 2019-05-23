@@ -1,0 +1,125 @@
+<!doctype html>
+<html class="no-js" lang="">
+
+<head>
+    <meta charset="utf-8">
+    <title>Connection Test</title>
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+          integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+</head>
+
+<body>
+<main class="container my-4" style="max-width: 300px;">
+
+    <!--[if IE]>
+    <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a
+            href="https://browsehappy.com/">upgrade your browser</a> to improve your experience and security.</p>
+    <![endif]-->
+
+    <h2>Connection Test</h2>
+
+    <ul class="list-group">
+        <li class="list-group-item" data-latency>&nbsp;</li>
+        <li class="list-group-item" data-loss>&nbsp;</li>
+        <li class="list-group-item" data-bytes>&nbsp;</li>
+    </ul>
+    <ul data-preview class="preview"></ul>
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/5.10.3/math.min.js"></script>
+
+<style>
+    ul.preview {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    ul.preview li {
+        display: inline-block;
+        width: 5px;
+        height: 5px;
+        border-radius: 10px;
+        background: #999;
+        margin-right: 2px;
+    }
+</style>
+<script>
+    (function () {
+        var preview = document.querySelector('[data-preview]');
+
+        var results = [];
+        var size = 0;
+        var attempts = 0;
+        var start = Date.now();
+
+        function append(latency) {
+            results.push(latency);
+        }
+
+        function view() {
+            if (results.length === 0) {
+                return;
+            }
+            var now = Date.now();
+            var seconds = (now - start) / 1000;
+            var kb = (size / Math.pow(1024, 1));
+
+            var kbps = kb / seconds * 8;
+
+            document.querySelector('[data-latency]').innerHTML = 'Latency ' + Math.round(math.mean(results))+'ms (±' + Math.round(math.std(results)) + 'ms)'
+            document.querySelector('[data-loss]').innerHTML = 'Loss ' + (100 - Math.round(results.length / attempts * 100)) + '%';
+            document.querySelector('[data-bytes]').innerHTML = 'Bytes ' + size;
+            // document.querySelector('[data-speed]').innerHTML = Math.round(kbps) + 'Kbps';
+
+            console.log("Seconds: " + seconds);
+            console.log("KB: " + kb);
+        }
+
+        function poll() {
+            var xhr = new XMLHttpRequest();
+            var element = preview.appendChild(document.createElement('li'));
+
+            var start = Date.now();
+            var finish;
+
+            xhr.onload = function () {
+                attempts++;
+                size += xhr.response.length;
+                finish = Date.now();
+                if (xhr.status === 200) {
+                    element.classList.add('bg-success');
+                    append(finish - start);
+                } else {
+                    element.classList.add('bg-danger');
+                }
+
+                if (Math.random() > 0.90) {
+                    view();
+                }
+            };
+
+            var url = 'https://picsum.photos/id/237/100/100?'+Date.now();
+            if (Math.random() > 0.9) {
+                url = 'fdsfsdfd';
+            }
+            xhr.open('GET', url);
+            xhr.send();
+        }
+
+
+        var interval = setInterval(poll, 50);
+
+        setTimeout(function () {
+            clearInterval(interval);
+            view();
+        }, 10000)
+    })();
+</script>
+</body>
+
+</html>
