@@ -27,55 +27,87 @@
     </style>
 </head>
 <body>
-<main class="container my-4" style="max-width: 300px;">
+<main class="container my-4" style="max-width: 600px;">
     <!--[if IE]>
     <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a
             href="https://browsehappy.com/">upgrade your browser</a> to improve your experience and security.</p>
     <![endif]-->
-    <h2>Connection Test</h2>
-    <ul class="list-group">
+    <h5 class="d-inline">Connection Test</h5>
+    <p class="d-inline ml-2 text-muted" data-status>Pending</p>
+    <button class="btn btn-primary btn-sm ml-2 d-none float-right" onclick="email()" data-email>Email</button>
+    <ul class="list-group mt-2 mb-2" style="clear: both;">
+        <li class="list-group-item" data-requests>&nbsp;</li>
         <li class="list-group-item" data-latency>&nbsp;</li>
         <li class="list-group-item" data-loss>&nbsp;</li>
-        <li class="list-group-item" data-bytes>&nbsp;</li>
-        <li class="list-group-item" data-requests>&nbsp;</li>
-        <!--        <li class="list-group-item" data-speed>&nbsp;</li>-->
+        <li class="list-group-item" data-delays>&nbsp;</li>
+        <li class="list-group-item" data-success>&nbsp;</li>
     </ul>
     <ul data-preview class="preview"></ul>
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/5.10.3/math.min.js"></script>
 <script>
+    let email = function () { return };
     (function () {
         var preview = document.querySelector('[data-preview]');
 
+        var status = 'Pending';
         var results = [];
         var size = 0;
-        var failures = attempts = 0;
+
+        var attempts = 0;
+        var failures = 0;
+        var successes = 0;
+        var delays = 0;
+
         var start = Date.now();
         var requests = [];
+        var finishedPolling = false;
 
         function append(latency) {
             results.push(latency);
         }
 
         function view() {
-            if (results.length === 0) {
-                return;
+
+            if (successes + failures + delays === attempts && finishedPolling) {
+                clearInterval(viewInterval);
+                status = "";
             }
+
             var now = Date.now();
             var seconds = (now - start) / 1000;
             var kb = (size / Math.pow(1024, 1));
+            // var kbps = kb / seconds * 8;
 
-            var kbps = kb / seconds * 8;
+            if (results.length) {
+                document.querySelector('[data-latency]').innerHTML = 'Latency ' + Math.round(math.mean(results)) + 'ms (±' + Math.round(math.std(results)) + 'ms)';
+            }
 
-            document.querySelector('[data-latency]').innerHTML = 'Latency ' + Math.round(math.mean(results)) + 'ms (±' + Math.round(math.std(results)) + 'ms)'
-            document.querySelector('[data-loss]').innerHTML = 'Loss ' + (Math.round(failures / attempts * 100)) + '%';
-            document.querySelector('[data-bytes]').innerHTML = 'Bytes ' + size;
-            document.querySelector('[data-requests]').innerHTML = 'Requests ' + attempts;
-            // document.querySelector('[data-speed]').innerHTML = Math.round(kbps) + 'Kbps';
+            if (attempts) {
+                document.querySelector('[data-loss]').innerHTML = 'Loss ' + (Math.round(failures / attempts * 100)) + '% (' + failures + ')';
+                document.querySelector('[data-delays]').innerHTML = 'Delayed ' + (Math.round(delays / attempts * 100)) + '% (' + delays + ')';
+                document.querySelector('[data-success]').innerHTML = 'Success ' + (Math.round(successes / attempts * 100)) + '% (' + successes + ')';
+                document.querySelector('[data-requests]').innerHTML = 'Requests ' + attempts;
+            }
+
+            document.querySelector('[data-status]').innerHTML = status;
 
             console.log("Seconds: " + seconds);
             console.log("KB: " + kb);
+
         }
+
+        email = function () {
+            var subject = "Connection Test Results";
+            var body = 'Test run on ' + new Date().toString() + ':<br>' +
+                        document.querySelector('[data-requests]').innerHTML + '<br>' +
+                        document.querySelector('[data-latency]').innerHTML + '<br>' +
+                        document.querySelector('[data-loss]').innerHTML + '<br>' +
+                        document.querySelector('[data-delays]').innerHTML + '<br>' +
+                        document.querySelector('[data-success]').innerHTML + '<br>';
+            // console.log(body);
+            window.location.href = 'mailto:team@hutsix.com.au?subject='+subject+'&body='+body;
+        };
 
         function poll() {
             var xhr = new XMLHttpRequest();
@@ -85,7 +117,6 @@
             var finish;
 
             attempts++;
-            xhr.timeout = 2000;
 
             function fail() {
                 failures++;
@@ -96,21 +127,23 @@
                 size += xhr.response.length;
                 finish = Date.now();
                 if (xhr.status === 200) {
-                    element.classList.add('bg-success');
-                    append(finish - start);
+                    var time = finish - start;
+                    append(time);
+                    if (time > 2000) {
+                        element.classList.add('bg-warning');
+                        delays ++
+                    } else {
+                        element.classList.add('bg-success');
+                        successes ++;
+                    }
                 } else {
                     fail();
                 }
-
-                if (Math.random() > 0.90) {
-                    view();
-                }
             };
 
+            xhr.onerror = fail;
             xhr.ontimeout = fail;
-            xhr.onabort = function () {
-                element.classList.add('bg-warning')
-            };
+            xhr.onabort = fail;
 
             var url = 'https://picsum.photos/id/237/50/50?' + Date.now();
 
@@ -120,20 +153,18 @@
             requests.push(xhr);
         }
 
+        var viewInterval = setInterval(view, 1000);
 
         setTimeout(function () {
+            status = "Test Running";
             var interval = setInterval(poll, 20);
-
+            view();
             setTimeout(function () {
                 clearInterval(interval);
-                view();
-
-                setTimeout(function () {
-                    requests.forEach(function (request) {
-                        request.abort();
-                    });
-                }, 10000);
+                finishedPolling = true;
+                document.querySelector('[data-email]').classList.remove("d-none");
             }, 20000)
+
         }, 2000);
 
     })();
